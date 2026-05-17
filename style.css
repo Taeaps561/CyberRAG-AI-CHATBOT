@@ -1,0 +1,493 @@
+/* Cyber-RAG Ultimate Dark Theme - FIXED & ROBUST 🛡️ */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&family=Kanit:wght@300;400;500;600&family=Sarabun:wght@400;500&display=swap');
+
+:root {
+    --primary-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --bg-dark: #0d1117;
+    --sidebar-bg: #161b22;
+    --card-bg: #1c2128;
+    --user-bubble-bg: #1e293b;
+    --assistant-bubble-bg: #1c2128;
+    --border-color: #30363d;
+    --cyber-green: #00ffa3;
+    --text-main: #ffffff;
+    --text-muted: #cccccc;
+}
+
+/* Global Reset */
+html,
+body,
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stHeader"],
+[data-testid="stMain"],
+button,
+input,
+select,
+textarea {
+    font-family: 'Kanit', 'Inter', sans-serif !important;
+    background-color: var(--bg-dark) !important;
+    color: var(--text-main) !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+[data-testid="stBottomBlockContainer"] {
+    background-color: var(--bg-dark) !important;
+}
+
+/* Sidebar Styling */
+[data-testid="stSidebar"] {
+    background-color: var(--sidebar-bg) !important;
+    border-right: 1px solid var(--border-color) !important;
+}
+
+[data-testid="stSidebarUserContent"] {
+    padding: 0px 10px !important;
+    gap: 0.2rem !important;
+    /* Extremely tight gap */
+}
+
+/* Reduce Streamlit Divider Margin */
+[data-testid="stSidebar"] hr {
+    margin: 0.5rem 0 !important;
+    opacity: 0.2;
+}
+
+/* Global Sidebar Text Force White */
+[data-testid="stSidebar"] * {
+    color: white !important;
+}
+
+/* Darken Search Input specifically */
+div[data-testid="stSidebar"] .stTextInput input {
+    background-color: #1a1f26 !important;
+    color: white !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+.sidebar-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 32px;
+    /* Increased from 24px */
+    font-weight: 800;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-top: -50px !important;
+    margin-bottom: 5px;
+    text-align: right;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-subtitle {
+    font-size: 14px;
+    /* Increased from 11px */
+    color: white !important;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 25px;
+    opacity: 0.9;
+    text-align: center;
+}
+
+/* Sidebar labels and links */
+.sidebar-label {
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+/* Force Expander Header to be Dark with White Text */
+div[data-testid="stExpander"] {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+div[data-testid="stExpander"] summary {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    color: white !important;
+    border-radius: 10px;
+}
+
+div[data-testid="stExpander"] p,
+div[data-testid="stExpander"] div {
+    color: white !important;
+}
+
+/* File Uploader Polish */
+[data-testid="stFileUploader"] {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+    border: 1px dashed var(--border-color) !important;
+    border-radius: 12px !important;
+    padding: 10px !important;
+}
+
+[data-testid="stFileUploader"] section {
+    background-color: transparent !important;
+    padding: 10px !important;
+}
+
+[data-testid="stFileUploader"] label {
+    color: var(--cyber-green) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stFileUploader"] button {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+[data-testid="stFileUploader"] button:hover {
+    background-color: var(--cyber-green) !important;
+    color: black !important;
+}
+
+div[data-baseweb="select"]>div {
+    background-color: #1a1f26 !important;
+    color: white !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+div[data-baseweb="popover"] * {
+    background-color: #1a1f26 !important;
+    color: white !important;
+}
+
+div[role="listbox"] li {
+    color: white !important;
+    background-color: transparent !important;
+}
+
+div[role="listbox"] li:hover {
+    background-color: var(--cyber-green) !important;
+    color: black !important;
+    /* Change text to black on hover for contrast */
+}
+
+.stButton button {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    width: 100% !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-size: 14px !important;
+    height: 40px !important;
+}
+
+.stButton button:hover {
+    border-color: var(--cyber-green) !important;
+    background-color: rgba(0, 255, 136, 0.08) !important;
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.1) !important;
+    transform: translateY(-1px);
+}
+
+/* Column 1 (Chat Title) - STRICT LEFT ALIGN & FULL WIDTH */
+[data-testid="stColumn"]:nth-of-type(1) .stButton button,
+[data-testid="stColumn"]:nth-of-type(1) .stButton button div,
+[data-testid="stColumn"]:nth-of-type(1) .stButton button span,
+[data-testid="stColumn"]:nth-of-type(1) .stButton button p {
+    justify-content: flex-start !important;
+    text-align: left !important;
+    width: 100% !important;
+    padding-left: 0px !important;
+    margin-left: 0px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Subtle padding and truncation for the text itself */
+[data-testid="stColumn"]:nth-of-type(1) .stButton button p {
+    padding-left: 8px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+    /* Required for ellipsis */
+    width: 100% !important;
+}
+
+/* Column 2 & 3 (Icons) - STRICT CENTER ALIGN */
+[data-testid="stColumn"]:nth-of-type(n+2) .stButton button,
+[data-testid="stColumn"]:nth-of-type(n+2) .stButton button div,
+[data-testid="stColumn"]:nth-of-type(n+2) .stColumn button span,
+[data-testid="stColumn"]:nth-of-type(n+2) .stButton button p {
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    display: flex !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+}
+
+/* Icon Buttons Shaping */
+[data-testid="stColumn"]:nth-of-type(n+2) .stButton button {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+}
+
+[data-testid="column"] .stButton button:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* --- FULL WIDTH EDGE-TO-EDGE CHAT FIX --- */
+
+/* 1. Unlock the main Streamlit container width */
+[data-testid="stMainBlockContainer"] {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 5% !important;
+    padding-right: 5% !important;
+}
+
+/* 2. Ensure the chat message rows occupy full width to allow edge alignment */
+[data-testid="stChatMessage"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    gap: 12px !important;
+    background: transparent !important;
+}
+
+/* 3. Push content to edges based on sender */
+div[data-testid="stChatMessage"]:has(img[alt="user"]),
+div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]),
+div[data-testid="stChatMessage"][aria-label="Chat message from user"] {
+    flex-direction: row-reverse !important;
+    justify-content: flex-start !important;
+    /* Right side */
+}
+
+div[data-testid="stChatMessage"]:has(img[alt="assistant"]),
+div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]),
+div[data-testid="stChatMessage"][aria-label="Chat message from assistant"] {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    /* Left side */
+}
+
+/* 4. Ensure avatars stay small and don't stretch */
+div[data-testid="stChatMessageAvatarUser"],
+div[data-testid="stChatMessageAvatarAssistant"],
+div[data-testid="stChatMessage"] img {
+    width: 40px !important;
+    height: 40px !important;
+    flex-shrink: 0 !important;
+}
+
+/* 5. The message bubble should wrap text and not stretch */
+div[data-testid="stChatMessageContent"] {
+    background: var(--assistant-bubble-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 18px !important;
+    padding: 12px 20px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+    color: white !important;
+    width: fit-content !important;
+    max-width: 80% !important;
+    flex-grow: 0 !important;
+}
+
+/* User Message Specific Styling */
+div[data-testid="stChatMessage"]:has(img[alt="user"]) div[data-testid="stChatMessageContent"],
+div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) div[data-testid="stChatMessageContent"],
+div[data-testid="stChatMessage"][aria-label="Chat message from user"] div[data-testid="stChatMessageContent"] {
+    background: var(--user-bubble-bg) !important;
+    border: 1px solid rgba(79, 172, 254, 0.2) !important;
+    border-bottom-right-radius: 4px !important;
+    margin-right: 0 !important; /* Stick to avatar on the right */
+    margin-left: auto !important; /* Push from the left */
+}
+
+/* Assistant Message Specific Styling */
+div[data-testid="stChatMessage"]:has(img[alt="assistant"]) div[data-testid="stChatMessageContent"],
+div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) div[data-testid="stChatMessageContent"],
+div[data-testid="stChatMessage"][aria-label="Chat message from assistant"] div[data-testid="stChatMessageContent"] {
+    border-bottom-left-radius: 4px !important;
+    margin-left: 0 !important; /* Stick to avatar on the left */
+    margin-right: auto !important; /* Push from the right */
+}
+
+/* Assistant Message Specific Styling */
+div[data-testid="stChatMessageAssistant"] div[data-testid="stChatMessageContent"] {
+    border-left: 4px solid var(--cyber-green) !important;
+}
+
+/* Status Messages (st.info, st.success, etc.) */
+div[data-testid="stNotification"] {
+    background-color: #1c2128 !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 12px !important;
+}
+
+div[data-testid="stNotification"] p {
+    color: var(--text-main) !important;
+    font-weight: 500 !important;
+}
+
+/* Chat Input */
+[data-testid="stChatInput"] {
+    background-color: #fdf5e6 !important;
+    /* Cream Color */
+    border: 2px solid #dcdcdc !important;
+    border-radius: 15px !important;
+}
+
+[data-testid="stChatInput"] textarea {
+    font-family: 'Kanit', sans-serif !important;
+    color: #1a1a1a !important;
+    /* Black Text */
+    background-color: transparent !important;
+    font-weight: 500 !important;
+    font-size: 16px !important;
+}
+
+/* Specific container for the input */
+div[data-testid="stChatInput"] {
+    background-color: #fdf5e6 !important;
+}
+
+/* Adjusting placeholder color for visibility on cream background */
+[data-testid="stChatInput"] textarea::placeholder {
+    color: #666666 !important;
+}
+
+/* Chat Input Send Button Color */
+[data-testid="stChatInput"] button svg {
+    fill: #1a1a1a !important;
+}
+
+/* Bottom Profile */
+.profile-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.profile-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: var(--primary-gradient);
+}
+
+/* Typography & Readability */
+.stMarkdown p,
+.stMarkdown li,
+.stMarkdown span {
+    font-family: 'Kanit', sans-serif !important;
+    line-height: 1.8 !important;
+    font-size: 16px !important;
+    letter-spacing: 0.3px;
+    color: #ffffff !important;
+    font-weight: 300 !important;
+}
+
+h1,
+h2,
+h3,
+.greeting-text,
+.sidebar-title {
+    font-family: 'Outfit', sans-serif !important;
+}
+
+.plan-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    margin-bottom: 15px;
+    color: var(--text-main);
+}
+
+.greeting-container {
+    text-align: center;
+    margin-top: 15vh;
+}
+
+.greeting-text {
+    font-family: 'Outfit', sans-serif;
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    background: linear-gradient(to bottom, #ffffff 0%, #a5a5a5 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Hide Unwanted Elements */
+footer {
+    visibility: hidden;
+}
+
+header {
+    background: transparent !important;
+}
+
+#MainMenu {
+    visibility: hidden;
+}
+
+.stDeployButton {
+    display: none;
+}
+
+[data-testid="stChatInput"] textarea {
+    padding-left: 15px !important;
+    font-size: 18px !important;
+    min-height: 60px !important;
+    padding-top: 15px !important;
+    padding-bottom: 15px !important;
+    line-height: 1.6 !important;
+}
+
+div[data-testid="column"] {
+    display: flex;
+    align-items: center;
+}
+
+/* Sidebar Collapse Button Adjustment */
+[data-testid="stSidebar"]>div:first-child {
+    overflow: visible !important;
+}
+
+/* Unified Sidebar Control Buttons (Expand & Collapse) */
+[data-testid="stSidebarCollapseButton"],
+button[aria-label="Expand sidebar"] {
+    transform: translate(20px, 20px) !important;
+    z-index: 999999 !important;
+    background-color: #1a1f26 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    pointer-events: auto !important;
+    border-radius: 8px !important;
+}
+
+[data-testid="stSidebarCollapseButton"] svg,
+button[aria-label="Expand sidebar"] svg {
+    fill: white !important;
+    color: white !important;
+}
+
+[data-testid="stSidebarCollapseButton"] button,
+button[aria-label="Expand sidebar"] {
+    pointer-events: auto !important;
+}

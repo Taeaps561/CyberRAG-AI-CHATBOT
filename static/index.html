@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber-RAG Enterprise 🛡️</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --sidebar-color: #1e293b;
+            --accent-color: #38bdf8;
+            --text-color: #f1f5f9;
+            --message-user: #0369a1;
+            --message-ai: #334155;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Login Overlay */
+        #login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .login-card {
+            background: var(--sidebar-color);
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            border: 1px solid #334155;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-card h2 {
+            margin-bottom: 1.5rem;
+            color: var(--accent-color);
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.75rem;
+            color: white;
+            text-align: center;
+            font-size: 1.2rem;
+            box-sizing: border-box;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 1rem;
+            background: var(--accent-color);
+            border: none;
+            border-radius: 0.75rem;
+            color: #0f172a;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .login-btn:hover { transform: scale(1.02); }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background-color: var(--sidebar-color);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #334155;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 2rem;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+        }
+
+        .sidebar-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent-color);
+            letter-spacing: -0.025em;
+        }
+
+        .sidebar-content {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .nav-btn {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            color: var(--text-color);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(56, 189, 248, 0.2);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-top: 1rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444; /* Default to red */
+        }
+
+        .status-dot.online { background: #10b981; }
+
+        /* Main Content */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 1rem 2rem;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #334155;
+            z-index: 10;
+        }
+
+        .messages-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 1rem 1.5rem;
+            border-radius: 1rem;
+            line-height: 1.6;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--message-user);
+            border-bottom-right-radius: 0;
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background-color: var(--message-ai);
+            border-bottom-left-radius: 0;
+            border: 1px solid #475569;
+        }
+
+        /* Markdown Styling in Chat */
+        .message p { margin: 0 0 0.5rem 0; }
+        .message p:last-child { margin-bottom: 0; }
+        .message pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+        .message code {
+            font-family: 'Fira Code', monospace;
+            background: rgba(0,0,0,0.3);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.9em;
+        }
+        .message pre code {
+            background: transparent;
+            padding: 0;
+        }
+        .message ul, .message ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        .message blockquote {
+            border-left: 4px solid var(--accent-color);
+            margin: 0.5rem 0;
+            padding-left: 1rem;
+            color: #94a3b8;
+        }
+        .message table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0.5rem 0;
+            font-size: 0.9em;
+        }
+        .message th, .message td {
+            border: 1px solid #475569;
+            padding: 0.5rem;
+            text-align: left;
+        }
+        .message th {
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        .sources {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            color: #94a3b8;
+            border-top: 1px solid #475569;
+            padding-top: 0.5rem;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 2rem;
+            background: linear-gradient(to top, var(--bg-color), transparent);
+        }
+
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--sidebar-color);
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            display: flex;
+            padding: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 0.75rem 1rem;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        .send-btn {
+            background: var(--accent-color);
+            border: none;
+            color: #0f172a;
+            width: 40px;
+            height: 40px;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div id="login-overlay">
+        <div class="login-card">
+            <h2>🛡️ Cyber-RAG Access</h2>
+            <p style="color: #94a3b8; margin-bottom: 2rem;">Enter your enterprise password</p>
+            <input type="password" id="login-password" placeholder="••••••••" onkeypress="if(event.key==='Enter') performLogin()">
+            <button class="login-btn" onclick="performLogin()">Connect to Engine</button>
+            <div id="login-error" style="color: #ef4444; margin-top: 1rem; display: none;">Invalid password</div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">CYBER-RAG 🛡️</div>
+                <div class="sidebar-subtitle">Enterprise Intelligence</div>
+                <div class="status-badge">
+                    <div id="status-dot" class="status-dot"></div>
+                    <span id="status-text">Connecting...</span>
+                </div>
+            </div>
+            <div class="sidebar-content">
+                <button class="nav-btn" onclick="newChat()">
+                    <i class="fas fa-plus"></i> New Chat
+                </button>
+                <button class="nav-btn" onclick="logout()" style="margin-top: 0.5rem; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2);">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+                <div style="margin-top: 2rem; color: #64748b; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">Settings</div>
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; cursor: pointer;">
+                    <input type="checkbox" id="use-rag" checked style="width: auto;"> 
+                    <span style="font-size: 0.875rem;">Enable RAG Mode</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="chat-header">
+                <div style="font-weight: bold;">Security Incident Analysis</div>
+            </div>
+
+            <div id="messages" class="messages-container">
+                <div class="message ai">
+                    สวัสดีครับ! ผมคือ AI ผู้เชี่ยวชาญด้าน Cyber Security มีอะไรให้ผมช่วยตรวจสอบในวันนี้ไหมครับ?
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <input type="text" id="user-input" placeholder="พิมพ์คำถามของคุณที่นี่..." onkeypress="handleKey(event)">
+                    <button class="send-btn" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = Math.random().toString(36).substring(7);
+        let authToken = localStorage.getItem('cyber_token');
+
+        // Marked configuration
+        marked.setOptions({ breaks: true, gfm: true });
+
+        async function performLogin() {
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+            
+            try {
+                const res = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    authToken = data.access_token;
+                    localStorage.setItem('cyber_token', authToken);
+                    document.getElementById('login-overlay').style.display = 'none';
+                    checkStatus();
+                } else {
+                    errorDiv.style.display = 'block';
+                }
+            } catch (e) {
+                errorDiv.innerText = "Connection failed";
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('cyber_token');
+            location.reload();
+        }
+
+        if (authToken) {
+            document.getElementById('login-overlay').style.display = 'none';
+        }
+
+        async function checkStatus() {
+            if (!authToken) return;
+            try {
+                const res = await fetch('/readiness', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                const dot = document.getElementById('status-dot');
+                const txt = document.getElementById('status-text');
+                if (data.status === 'ready') {
+                    dot.classList.add('online');
+                    txt.innerText = 'System Ready';
+                } else {
+                    dot.classList.remove('online');
+                    txt.innerText = data.reason || 'Initializing AI...';
+                }
+            } catch (e) {
+                if (e.status === 401 || e.status === 403) logout();
+            }
+        }
+
+        setInterval(checkStatus, 5000);
+        checkStatus();
+
+        function handleKey(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        function newChat() {
+            document.getElementById('messages').innerHTML = `
+                <div class="message ai">
+                    ยินดีด้วยครับ! เริ่มการสนทนาใหม่แล้ว มีอะไรให้ผมช่วยไหมครับ?
+                </div>
+            `;
+            sessionId = Math.random().toString(36).substring(7);
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if (!text || !authToken) return;
+
+            input.value = '';
+            appendMessage('user', text);
+
+            const aiMessageDiv = appendMessage('ai', '🔍 กำลังประมวลผล...');
+            let fullText = "";
+
+            const useRag = document.getElementById('use-rag').checked;
+            const url = `/stream?prompt=${encodeURIComponent(text)}&session_id=${sessionId}&use_rag=${useRag}`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    logout();
+                    return;
+                }
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                aiMessageDiv.innerHTML = ""; 
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6).trim();
+                            if (dataStr === '[DONE]') break;
+                            
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.content) {
+                                    fullText += data.content;
+                                    aiMessageDiv.innerHTML = marked.parse(fullText);
+                                    scrollToBottom();
+                                } else if (data.status) {
+                                    if (fullText === "") {
+                                        aiMessageDiv.innerHTML = `<em>🔍 ${data.status}</em>`;
+                                    }
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+            } catch (e) {
+                aiMessageDiv.innerHTML = `<span style="color: #ef4444;">Error: ${e.message}</span>`;
+            }
+        }
+
+        function appendMessage(role, text) {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            if (role === 'user') {
+                div.innerText = text;
+            } else {
+                div.innerHTML = text;
+            }
+            container.appendChild(div);
+            scrollToBottom();
+            return div;
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('messages');
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>
+

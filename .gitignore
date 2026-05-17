@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+
+# Streamlit
+.streamlit/
+
+# Project Specific
+chroma_db/
+data/**
+!data/.gitkeep
+chat_history.json
+detect_imports.py
+deep_search_imports.py
+*.db
+*.log
+*.txt
+debug_output_safe.json
+
+# OS
+.DS_Store
+Thumbs.db
