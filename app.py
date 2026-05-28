@@ -47,6 +47,7 @@ local_css("style.css")
 def get_cyber_engine_v4():
     e = RAGEngine()
     _, status_msg = e.init_system()
+    e.start_watchdog()  # [Phase 3] auto re-index when files change
     return e, status_msg
 
 engine, _init_status = get_cyber_engine_v4()
@@ -71,6 +72,15 @@ with st.sidebar:
         st.error(f"❌ ระบบยังไม่พร้อม: {_init_status}")
         if "Ollama" in _init_status:
             st.info("💡 ตรวจสอบว่า Ollama รันอยู่หรือไม่")
+
+    # [Phase 3] Multi-Model Selector
+    available_models = engine.get_available_models()
+    current_idx = available_models.index(engine.model_name) if engine.model_name in available_models else 0
+    selected_model = st.selectbox("🤖 เลือก AI Model:", available_models, index=current_idx)
+    if selected_model != engine.model_name:
+        engine.switch_model(selected_model)
+        st.success(f"✅ เปลี่ยนเป็น {selected_model}")
+        st.rerun()
 
     if st.button("➕ New Chat", use_container_width=True):
         st.session_state.messages = []
@@ -221,8 +231,14 @@ with tab_chat:
             status_placeholder.info("🔍 กำลังค้นหาข้อมูลจากคลังความรู้...")
 
             filter_folder = st.session_state.get("selected_folder", "ทั้งหมด")
+            # [Phase 3] Build conversation history (last 6 messages = 3 turns)
+            history = [
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages[-6:]
+                if m["role"] in ("user", "assistant")
+            ]
             # [Phase 2] 3-tuple: gen_chunk, docs, is_web
-            for gen_chunk, docs, is_web in engine.query_stream(prompt, filter_folder=filter_folder):
+            for gen_chunk, docs, is_web in engine.query_stream(prompt, filter_folder=filter_folder, history=history):
                 if docs:
                     all_docs = docs
                 if is_web:

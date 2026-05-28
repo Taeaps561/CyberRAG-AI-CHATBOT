@@ -21,3 +21,4 @@ uvicorn
 python-multipart
 langchain-experimental
 PyJWT
+watchdog

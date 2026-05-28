@@ -30,6 +30,7 @@ class AgentState(TypedDict):
     filter_folder: Optional[str]
     web_search_needed: bool    # [Phase 2] flag set by grade_docs node
     used_web_search: bool      # [Phase 2] recorded for analytics
+    history: List[Dict[str, str]]  # [Phase 3] conversation memory
 
 class RAGEngine:
     def __init__(self, model_name: str = "llama3.2", embed_model: str = "nomic-embed-text"):
@@ -70,6 +71,79 @@ class RAGEngine:
             response = requests.get("http://127.0.0.1:11434/api/tags", timeout=3)
             return response.status_code == 200
         except: return False
+
+    # ── [Phase 3] Multi-Model ──────────────────────────────────────────
+    def get_available_models(self) -> List[str]:
+        """Fetch all pulled model names from Ollama."""
+        try:
+            resp = requests.get("http://127.0.0.1:11434/api/tags", timeout=3)
+            if resp.status_code == 200:
+                return [m["name"] for m in resp.json().get("models", [])]
+        except Exception:
+            pass
+        return [self.model_name]
+
+    def switch_model(self, model_name: str):
+        """Hot-swap the LLM to a different Ollama model and rebuild the graph."""
+        if model_name == self.model_name:
+            return
+        logger.info(f"Switching model: {self.model_name} → {model_name}")
+        self.model_name = model_name
+        self.llm = ChatOllama(
+            model=self.model_name,
+            temperature=0,
+            base_url="http://127.0.0.1:11434",
+            timeout=120,
+            num_ctx=2048,
+            num_thread=2
+        )
+        self._build_graph()  # rebuild with new LLM
+        logger.info(f"Model switched to {model_name}")
+
+    # ── [Phase 3] Auto Re-index Watchdog ──────────────────────────────
+    def start_watchdog(self, on_reindex_done=None):
+        """Monitor data/ folder and auto re-index 3s after any file change."""
+        try:
+            from watchdog.observers import Observer
+            from watchdog.events import FileSystemEventHandler
+        except ImportError:
+            logger.warning("watchdog not installed — auto re-index disabled")
+            return None
+
+        engine = self
+        _timer: list = [None]  # mutable container for timer ref
+
+        class _Handler(FileSystemEventHandler):
+            SUPPORTED = ('.pdf', '.txt', '.docx', '.md')
+
+            def _trigger(self, path):
+                if not any(path.endswith(ext) for ext in self.SUPPORTED):
+                    return
+                if _timer[0]:
+                    _timer[0].cancel()
+                def _reindex():
+                    logger.info(f"Watchdog: re-indexing triggered by change in {path}")
+                    engine.init_system()
+                    engine.scan_data_stats()
+                    if on_reindex_done:
+                        on_reindex_done()
+                _timer[0] = threading.Timer(3.0, _reindex)
+                _timer[0].start()
+
+            def on_created(self, e):
+                if not e.is_directory: self._trigger(e.src_path)
+            def on_modified(self, e):
+                if not e.is_directory: self._trigger(e.src_path)
+            def on_deleted(self, e):
+                if not e.is_directory: self._trigger(e.src_path)
+
+        os.makedirs(self.data_dir, exist_ok=True)
+        observer = Observer()
+        observer.schedule(_Handler(), self.data_dir, recursive=True)
+        observer.daemon = True
+        observer.start()
+        logger.info(f"Watchdog started — monitoring: {self.data_dir}")
+        return observer
 
     def init_system(self, progress_callback=None) -> Tuple[Optional[Any], str]:
         """[Bug Fix #4] Use lock to prevent concurrent double-init. Supports progress_callback(float, str).
@@ -224,8 +298,20 @@ class RAGEngine:
         return {"documents": documents, "status": "🔍 ค้นหาข้อมูลทางเทคนิค..."}
 
     def node_generate(self, state: AgentState) -> Dict[str, Any]:
+        """[Phase 3] Includes conversation history (last 3 turns) in the prompt."""
         context = "\n\n".join([f"[Source: {os.path.basename(d.metadata.get('source',''))}]\n{d.page_content}" for d in state["documents"]])
-        template = f"{self.system_prompt}\n\nContext:\n{{context}}\n\nQuestion: {{question}}\nAnswer:"
+
+        # Build conversation history block (last 6 messages = 3 turns)
+        history_block = ""
+        for msg in state.get("history", [])[-6:]:
+            role = "ผู้ใช้" if msg.get("role") == "user" else "ผู้ช่วย"
+            history_block += f"{role}: {msg.get('content', '')}\n"
+
+        history_section = f"\n\nประวัติการสนทนา:\n{history_block}" if history_block else ""
+        template = (
+            f"{self.system_prompt}{history_section}"
+            "\n\nContext:\n{context}\n\nQuestion: {question}\nAnswer:"
+        )
         prompt = PromptTemplate(template=template, input_variables=["context", "question"])
         chain = prompt | self.llm | StrOutputParser()
         generation = chain.invoke({"context": context, "question": state["question"]})
@@ -279,8 +365,8 @@ class RAGEngine:
                                            metadata={"source": "Error", "page": 0})],
                     "used_web_search": True, "status": "⚠️ Web search ล้มเหลว"}
 
-    def query_stream(self, prompt: str, filter_folder: str = None):
-        """[Phase 2] Yields (gen_chunk, docs, used_web) — caller uses used_web for badge + analytics."""
+    def query_stream(self, prompt: str, filter_folder: str = None, history: List[Dict[str, str]] = None):
+        """[Phase 2+3] Yields (gen_chunk, docs, used_web). Accepts conversation history for memory."""
         if not self.graph:
             yield "System not ready.", [], False
             return
@@ -290,6 +376,7 @@ class RAGEngine:
             "filter_folder": filter_folder,
             "web_search_needed": False,
             "used_web_search": False,
+            "history": history or [],
         }
         try:
             final_used_web = False
