@@ -85,14 +85,21 @@ class RAGEngine:
             self.scan_data_stats()
             try:
                 if os.path.exists(os.path.join(self.db_dir, "chroma.sqlite3")):
-                    _cb(0.3, "⚙️ กำลังโหลด Embeddings...")
-                    embeddings = OllamaEmbeddings(model=self.embed_model, base_url="http://127.0.0.1:11434")
-                    _cb(0.6, "🗄️ กำลังเชื่อมต่อ Vector Database...")
-                    self.vectorstore = Chroma(persist_directory=self.db_dir, embedding_function=embeddings)
-                    self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": 8})
-                    threading.Thread(target=self._init_advanced_features, args=(embeddings,), daemon=True).start()
+                    try:
+                        _cb(0.3, "⚙️ กำลังโหลด Embeddings...")
+                        embeddings = OllamaEmbeddings(model=self.embed_model, base_url="http://127.0.0.1:11434")
+                        _cb(0.6, "🗄️ กำลังเชื่อมต่อ Vector Database...")
+                        self.vectorstore = Chroma(persist_directory=self.db_dir, embedding_function=embeddings)
+                        self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": 8})
+                        threading.Thread(target=self._init_advanced_features, args=(embeddings,), daemon=True).start()
+                        logger.info("RAG mode: Vector DB loaded successfully.")
+                    except Exception as embed_err:
+                        # [Fallback] Embedding/Chroma failed — gracefully fall back to web search
+                        logger.warning(f"Vector DB load failed ({embed_err}) — falling back to Web Search mode.")
+                        _cb(0.6, f"⚠️ โหลด Vector DB ไม่สำเร็จ ({type(embed_err).__name__}) — ใช้โหมด Web Search แทน")
+                        self.retriever = None
                 else:
-                    # [No-Doc Mode] No vector DB found — run in Web Search only mode
+                    # [No-Doc Mode] No chroma.sqlite3 found
                     _cb(0.6, "⚠️ ไม่พบ Vector Database — เปิดโหมด Web Search อย่างเดียว")
                     self.retriever = None
                 _cb(0.85, "🔗 กำลัง Build LangGraph...")
@@ -100,6 +107,7 @@ class RAGEngine:
                 _cb(1.0, "✅ พร้อมใช้งาน (โหมด Web Search)" if self.retriever is None else "✅ พร้อมใช้งาน!")
                 return self.graph, "Success"
             except Exception as e:
+                logger.error(f"init_system critical failure: {e}")
                 return None, f"Error: {e}"
 
     def scan_data_stats(self, filter_folder: str = "ทั้งหมด"):
