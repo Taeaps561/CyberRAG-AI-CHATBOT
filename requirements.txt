@@ -11,7 +11,7 @@ langsmith
 pypdf
 chromadb
 python-dotenv
-streamlit
+chainlit
 rank_bm25
 flashrank
 tiktoken
