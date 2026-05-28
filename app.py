@@ -78,9 +78,14 @@ with st.sidebar:
     current_idx = available_models.index(engine.model_name) if engine.model_name in available_models else 0
     selected_model = st.selectbox("🤖 เลือก AI Model:", available_models, index=current_idx)
     if selected_model != engine.model_name:
-        engine.switch_model(selected_model)
-        st.success(f"✅ เปลี่ยนเป็น {selected_model}")
-        st.rerun()
+        with st.spinner(f"⏳ กำลังทดสอบ {selected_model}..."):
+            ok, msg = engine.switch_model(selected_model)
+        if ok:
+            st.success(f"✅ {msg}")
+            st.rerun()
+        else:
+            st.error(f"❌ {msg}")
+
 
     if st.button("➕ New Chat", use_container_width=True):
         st.session_state.messages = []

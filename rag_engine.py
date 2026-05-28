@@ -83,10 +83,30 @@ class RAGEngine:
             pass
         return [self.model_name]
 
-    def switch_model(self, model_name: str):
-        """Hot-swap the LLM to a different Ollama model and rebuild the graph."""
+    def ping_model(self, model_name: str, timeout: int = 10) -> Tuple[bool, str]:
+        """Send a tiny test prompt to verify the model responds within timeout."""
+        try:
+            test_llm = ChatOllama(
+                model=model_name,
+                temperature=0,
+                base_url="http://127.0.0.1:11434",
+                timeout=timeout,
+                num_ctx=512,
+            )
+            test_llm.invoke("hi")
+            return True, "ok"
+        except Exception as e:
+            return False, str(e)
+
+    def switch_model(self, model_name: str) -> Tuple[bool, str]:
+        """Hot-swap the LLM. Returns (success, message) for UI feedback."""
         if model_name == self.model_name:
-            return
+            return True, "same model"
+        logger.info(f"Pinging model before switch: {model_name}")
+        ok, err = self.ping_model(model_name, timeout=15)
+        if not ok:
+            logger.warning(f"Model ping failed for {model_name}: {err}")
+            return False, f"โมเดล `{model_name}` ไม่ตอบสนอง — {err}"
         logger.info(f"Switching model: {self.model_name} → {model_name}")
         self.model_name = model_name
         self.llm = ChatOllama(
@@ -95,10 +115,12 @@ class RAGEngine:
             base_url="http://127.0.0.1:11434",
             timeout=120,
             num_ctx=2048,
-            num_thread=2
+            num_thread=2,
         )
-        self._build_graph()  # rebuild with new LLM
+        self._build_graph()
         logger.info(f"Model switched to {model_name}")
+        return True, f"เปลี่ยนเป็น {model_name} สำเร็จ"
+
 
     # ── [Phase 3] Auto Re-index Watchdog ──────────────────────────────
     def start_watchdog(self, on_reindex_done=None):
