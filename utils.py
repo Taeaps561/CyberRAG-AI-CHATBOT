@@ -4,6 +4,7 @@ Provides session-based chat history management for the Cyber-RAG Chatbot.
 """
 
 import os
+import json
 import sqlite3
 from datetime import datetime
 from typing import List, Optional
@@ -39,8 +40,28 @@ def init_db():
                 session_id   TEXT NOT NULL,
                 role         TEXT NOT NULL,
                 content      TEXT NOT NULL,
+                sources      TEXT DEFAULT '[]',
                 created_at   TEXT DEFAULT (datetime('now','localtime')),
                 FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+            )
+        """)
+        # [Bug Fix #3] Safe migration: add sources column for existing databases
+        try:
+            conn.execute("ALTER TABLE messages ADD COLUMN sources TEXT DEFAULT '[]'")
+        except sqlite3.OperationalError:
+            pass  # Column already exists — skip
+
+        # [Phase 2] Analytics: query_logs table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS query_logs (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id      TEXT,
+                query           TEXT NOT NULL,
+                response_ms     INTEGER,
+                doc_count       INTEGER DEFAULT 0,
+                folder          TEXT DEFAULT 'ทั้งหมด',
+                used_web        INTEGER DEFAULT 0,
+                created_at      TEXT DEFAULT (datetime('now','localtime'))
             )
         """)
         conn.commit()
@@ -65,8 +86,11 @@ class Session:
 # Public API
 # ---------------------------------------------------------------------------
 
-def save_chat_history_db(session_id: str, role: str, content: str) -> None:
-    """Append a message to a session. Creates the session if it doesn't exist."""
+def save_chat_history_db(session_id: str, role: str, content: str, sources: list = None) -> None:
+    """Append a message to a session. Creates the session if it doesn't exist.
+    [Bug Fix #3] sources are now persisted to DB as JSON.
+    """
+    sources_json = json.dumps(sources or [], ensure_ascii=False)
     with _get_conn() as conn:
         # Upsert session row
         conn.execute("""
@@ -88,20 +112,29 @@ def save_chat_history_db(session_id: str, role: str, content: str) -> None:
                 )
 
         conn.execute(
-            "INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)",
-            (session_id, role, content)
+            "INSERT INTO messages (session_id, role, content, sources) VALUES (?, ?, ?, ?)",
+            (session_id, role, content, sources_json)
         )
         conn.commit()
 
 
 def load_chat_history_db(session_id: str) -> List[dict]:
-    """Load all messages for a session, ordered by insertion time."""
+    """Load all messages for a session, ordered by insertion time.
+    [Bug Fix #3] Now also returns sources from DB.
+    """
     with _get_conn() as conn:
         rows = conn.execute(
-            "SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC",
+            "SELECT role, content, sources FROM messages WHERE session_id = ? ORDER BY id ASC",
             (session_id,)
         ).fetchall()
-    return [{"role": r["role"], "content": r["content"]} for r in rows]
+    return [
+        {
+            "role": r["role"],
+            "content": r["content"],
+            "sources": json.loads(r["sources"] or "[]"),
+        }
+        for r in rows
+    ]
 
 
 def get_all_sessions_db(search_query: str = "") -> List[Session]:
@@ -155,3 +188,112 @@ def rename_session_db(session_id: str, new_title: str) -> bool:
         return True
     except Exception:
         return False
+
+
+# ---------------------------------------------------------------------------
+# [Phase 1] Export Utilities
+# ---------------------------------------------------------------------------
+
+def export_session_md(session_id: str, session_title: str = "") -> str:
+    """Export a chat session to a Markdown string.
+    Includes full conversation with role labels, content, and cited sources.
+    """
+    messages = load_chat_history_db(session_id)
+    title = session_title or "Chat Export"
+    lines = [
+        f"# 🛡️ {title}",
+        f"> Exported from Cyber-RAG Enterprise\n",
+    ]
+    for m in messages:
+        if m["role"] == "user":
+            lines.append(f"### 🙋 User\n{m['content']}\n")
+        else:
+            lines.append(f"### 🤖 Assistant\n{m['content']}\n")
+            if m.get("sources"):
+                lines.append("**📚 Sources:**")
+                for s in m["sources"]:
+                    lines.append(f"- 📍 {s}")
+                lines.append("")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# [Phase 2] Analytics Functions
+# ---------------------------------------------------------------------------
+
+def log_query(
+    session_id: str,
+    query: str,
+    response_ms: int,
+    doc_count: int,
+    folder: str = "ทั้งหมด",
+    used_web: bool = False,
+) -> None:
+    """Record a query event for analytics tracking."""
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO query_logs
+                   (session_id, query, response_ms, doc_count, folder, used_web)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (session_id, query, response_ms, doc_count, folder, int(used_web)),
+            )
+            conn.commit()
+    except Exception:
+        pass  # analytics are non-critical
+
+
+def get_analytics(days: int = 7) -> dict:
+    """Return aggregated analytics for the dashboard.
+
+    Returns a dict with:
+      total_queries, avg_response_ms, web_ratio, daily_counts (list of dicts),
+      top_queries (list of dicts), total_sessions
+    """
+    with _get_conn() as conn:
+        # Overall stats
+        row = conn.execute("""
+            SELECT COUNT(*) AS total,
+                   AVG(response_ms) AS avg_ms,
+                   SUM(used_web) AS web_count
+            FROM query_logs
+            WHERE created_at >= datetime('now', ?, 'localtime')
+        """, (f"-{days} days",)).fetchone()
+
+        total = row["total"] or 0
+        avg_ms = round(row["avg_ms"] or 0)
+        web_count = row["web_count"] or 0
+
+        # Daily activity (last N days)
+        daily_rows = conn.execute("""
+            SELECT DATE(created_at) AS day, COUNT(*) AS count
+            FROM query_logs
+            WHERE created_at >= datetime('now', ?, 'localtime')
+            GROUP BY day
+            ORDER BY day ASC
+        """, (f"-{days} days",)).fetchall()
+
+        daily_counts = [{"day": r["day"], "count": r["count"]} for r in daily_rows]
+
+        # Top 10 most frequent queries (by keyword similarity — group by first 40 chars)
+        top_rows = conn.execute("""
+            SELECT SUBSTR(query, 1, 50) AS short_query, COUNT(*) AS freq
+            FROM query_logs
+            GROUP BY SUBSTR(query, 1, 50)
+            ORDER BY freq DESC
+            LIMIT 10
+        """).fetchall()
+        top_queries = [{"query": r["short_query"], "freq": r["freq"]} for r in top_rows]
+
+        # Total unique sessions
+        sess_row = conn.execute("SELECT COUNT(*) AS cnt FROM sessions").fetchone()
+        total_sessions = sess_row["cnt"] or 0
+
+    return {
+        "total_queries": total,
+        "avg_response_ms": avg_ms,
+        "web_ratio": round(web_count / total * 100, 1) if total else 0.0,
+        "daily_counts": daily_counts,
+        "top_queries": top_queries,
+        "total_sessions": total_sessions,
+    }
