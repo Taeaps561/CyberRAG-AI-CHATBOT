@@ -466,9 +466,15 @@ div[data-testid="column"] {
 }
 
 /* Sidebar Collapse Button Adjustment */
-[data-testid="stSidebar"]>div:first-child {
-    overflow: visible !important;
+[data-testid="stSidebar"] > div:first-child {
+    overflow: hidden !important;
 }
+
+[data-testid="stSidebarContent"] {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
 
 /* Unified Sidebar Control Buttons (Expand & Collapse) */
 [data-testid="stSidebarCollapseButton"],
