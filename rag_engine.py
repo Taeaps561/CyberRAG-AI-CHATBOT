@@ -411,6 +411,7 @@ class RAGEngine:
         except Exception as e:
             error_msg = str(e).lower()
             if any(kw in error_msg for kw in ["out of memory", "cuda error", "resource allocation", "exit code 2"]):
-                yield "⚠️ **Error: Hardware Resource Limit (GPU/CUDA).**\n\nระบบ Ollama เกิดการขัดข้องเนื่องจากทรัพยากรเครื่องไม่เพียงพอ (Exit Code 2)\n\n**วิธีแก้ไขที่แนะนำ:**\n1. ปิดหน้าต่าง Chrome/Browser ที่เปิดค้างไว้เยอะๆ\n2. ปิดโปรแกรมอื่นๆ ที่ใช้การ์ดจอ\n3. **Restart Ollama Desktop** (ปิดแล้วเปิดใหม่)\n4. ลองพิมพ์คำถามที่สั้นและกระชับขึ้น\n\n*(ระบบได้จำกัดการใช้ทรัพยากรขั้นสูงสุดแล้ว หากยังพบปัญหา โปรดลองรีสตาร์ทคอมพิวเตอร์)*", []
+                yield "⚠️ **Error: Hardware Resource Limit (GPU/CUDA).**\n\nระบบ Ollama เกิดการขัดข้องเนื่องจากทรัพยากรเครื่องไม่เพียงพอ (Exit Code 2)\n\n**วิธีแก้ไขที่แนะนำ:**\n1. ปิดหน้าต่าง Chrome/Browser ที่เปิดค้างไว้เยอะๆ\n2. ปิดโปรแกรมอื่นๆ ที่ใช้การ์ดจอ\n3. **Restart Ollama Desktop** (ปิดแล้วเปิดใหม่)\n4. ลองพิมพ์คำถามที่สั้นและกระชับขึ้น\n\n*(ระบบได้จำกัดการใช้ทรัพยากรขั้นสูงสุดแล้ว หากยังพบปัญหา โปรดลองรีสตาร์ทคอมพิวเตอร์)*", [], False
             else:
-                yield f"⚠️ **An error occurred:** {str(e)}", []
+                yield f"⚠️ **An error occurred:** {str(e)}", [], False
+
