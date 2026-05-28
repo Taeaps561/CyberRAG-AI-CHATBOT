@@ -168,8 +168,9 @@ class RAGEngine:
         return observer
 
     def init_system(self, progress_callback=None) -> Tuple[Optional[Any], str]:
-        """[Bug Fix #4] Use lock to prevent concurrent double-init. Supports progress_callback(float, str).
-        [No-Doc Mode] If no chroma_db is found, system still starts in Web-Search-only mode."""
+        """[Bug Fix #4] Use lock to prevent concurrent double-init.
+        [No-Doc Mode] Falls back to Web Search if no chroma_db.
+        [Phase 3] Wrapped with 30s timeout so slow Ollama never hangs the app."""
         if self._init_lock.locked():
             return self.graph, "Already initializing, please wait..."
         with self._init_lock:
@@ -177,34 +178,50 @@ class RAGEngine:
                 return None, "Ollama is not responding."
             def _cb(v, msg):
                 if progress_callback: progress_callback(v, msg)
-            _cb(0.1, "🔍 กำลังสแกนเอกสาร...")
-            self.scan_data_stats()
-            try:
-                if os.path.exists(os.path.join(self.db_dir, "chroma.sqlite3")):
-                    try:
-                        _cb(0.3, "⚙️ กำลังโหลด Embeddings...")
-                        embeddings = OllamaEmbeddings(model=self.embed_model, base_url="http://127.0.0.1:11434")
-                        _cb(0.6, "🗄️ กำลังเชื่อมต่อ Vector Database...")
-                        self.vectorstore = Chroma(persist_directory=self.db_dir, embedding_function=embeddings)
-                        self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": 8})
-                        threading.Thread(target=self._init_advanced_features, args=(embeddings,), daemon=True).start()
-                        logger.info("RAG mode: Vector DB loaded successfully.")
-                    except Exception as embed_err:
-                        # [Fallback] Embedding/Chroma failed — gracefully fall back to web search
-                        logger.warning(f"Vector DB load failed ({embed_err}) — falling back to Web Search mode.")
-                        _cb(0.6, f"⚠️ โหลด Vector DB ไม่สำเร็จ ({type(embed_err).__name__}) — ใช้โหมด Web Search แทน")
+
+            result = [None, "Timeout — Ollama took too long to respond"]
+
+            def _do_init():
+                _cb(0.1, "🔍 กำลังสแกนเอกสาร...")
+                self.scan_data_stats()
+                try:
+                    if os.path.exists(os.path.join(self.db_dir, "chroma.sqlite3")):
+                        try:
+                            _cb(0.3, "⚙️ กำลังโหลด Embeddings...")
+                            embeddings = OllamaEmbeddings(model=self.embed_model, base_url="http://127.0.0.1:11434")
+                            _cb(0.6, "🗄️ กำลังเชื่อมต่อ Vector Database...")
+                            self.vectorstore = Chroma(persist_directory=self.db_dir, embedding_function=embeddings)
+                            self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": 8})
+                            threading.Thread(target=self._init_advanced_features, args=(embeddings,), daemon=True).start()
+                            logger.info("RAG mode: Vector DB loaded successfully.")
+                        except Exception as embed_err:
+                            logger.warning(f"Vector DB load failed ({embed_err}) — falling back to Web Search mode.")
+                            _cb(0.6, f"⚠️ โหลด Vector DB ไม่สำเร็จ ({type(embed_err).__name__}) — ใช้โหมด Web Search แทน")
+                            self.retriever = None
+                    else:
+                        _cb(0.6, "⚠️ ไม่พบ Vector Database — เปิดโหมด Web Search อย่างเดียว")
                         self.retriever = None
-                else:
-                    # [No-Doc Mode] No chroma.sqlite3 found
-                    _cb(0.6, "⚠️ ไม่พบ Vector Database — เปิดโหมด Web Search อย่างเดียว")
-                    self.retriever = None
-                _cb(0.85, "🔗 กำลัง Build LangGraph...")
+                    _cb(0.85, "🔗 กำลัง Build LangGraph...")
+                    self._build_graph()
+                    _cb(1.0, "✅ พร้อมใช้งาน (โหมด Web Search)" if self.retriever is None else "✅ พร้อมใช้งาน!")
+                    result[0] = self.graph
+                    result[1] = "Success"
+                except Exception as e:
+                    logger.error(f"init_system critical failure: {e}")
+                    result[0] = None
+                    result[1] = f"Error: {e}"
+
+            t = threading.Thread(target=_do_init, daemon=True)
+            t.start()
+            t.join(timeout=30)          # ← max 30s wait; never hangs app
+            if t.is_alive():
+                logger.error("init_system timed out after 30s")
+                # Build graph without retriever so app is still usable via web search
+                self.retriever = None
                 self._build_graph()
-                _cb(1.0, "✅ พร้อมใช้งาน (โหมด Web Search)" if self.retriever is None else "✅ พร้อมใช้งาน!")
-                return self.graph, "Success"
-            except Exception as e:
-                logger.error(f"init_system critical failure: {e}")
-                return None, f"Error: {e}"
+                return self.graph, "⚠️ Timeout — ใช้โหมด Web Search แทน"
+            return result[0], result[1]
+
 
     def scan_data_stats(self, filter_folder: str = "ทั้งหมด"):
         """[Phase 1] Added .docx and .md to supported extensions."""
